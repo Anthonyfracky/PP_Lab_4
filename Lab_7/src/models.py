@@ -36,10 +36,10 @@ class Wallet(Base):
 class Transaction(Base):
     __tablename__ = "Transactions"
     id = Column(Integer, primary_key=True)
+    wallet_id_1 = Column("wallet_id_1", ForeignKey('Wallets.id', ondelete='CASCADE'), nullable=False)
     wallet_id_2 = Column(Integer, nullable=True)
-    date_time = Column(DateTime, default=datetime.now(), nullable=True)
     amount_of_money = Column(Integer, nullable=True)
     currency = Column(String(150), nullable=True)
+    date_time = Column(DateTime, default=datetime.now(), nullable=True)
     transaction_description = Column(String(150))
-    wallet_id_1 = Column("wallet_id_1", ForeignKey('Wallets.id', ondelete='CASCADE'), nullable=False)
     wallet = relationship('Wallet', back_populates='transactions')
