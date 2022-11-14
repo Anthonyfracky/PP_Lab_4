@@ -19,6 +19,7 @@ alembic = "*"
 psycopg2 = "*"
 marshmallow = "*"
 flask-bcrypt = "*"
+flask-httpauth = "*"
 
 [dev-packages]
 

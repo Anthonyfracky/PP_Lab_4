@@ -3,12 +3,14 @@ from flask import Blueprint, jsonify, request
 from flask_bcrypt import Bcrypt
 import src.models as models
 import src.db as db
+from src.auth import auth
 
 wallet_bp = Blueprint('wallet', __name__, url_prefix='/wallet')
 bcrypt = Bcrypt()
 
 
 @wallet_bp.route('/', methods=['POST'])
+@auth.login_required
 def create_wallet():
     class Wallet(Schema):
         balance = fields.Int(required=True)
@@ -25,6 +27,8 @@ def create_wallet():
         return jsonify({'message': 'Wallet already exists'}), 400
 
     user = db.session.query(models.User).filter(models.User.id == wallet['user_id']).first()
+    if request.json["user_id"] != auth.current_user().id:
+        return jsonify({'error': 'Unauthorized access'}), 401
     if user is None:
         return jsonify({'message': 'User does not exists'}), 400
 
@@ -43,8 +47,12 @@ def create_wallet():
 
 
 @wallet_bp.route('/<int:wallet_id>', methods=['GET'])
+@auth.login_required
 def get_wallet(wallet_id):
     wallet = db.session.query(models.Wallet).filter(models.Wallet.id == wallet_id).first()
+    user = db.session.query(models.User).filter(models.User.id == wallet['user_id']).first()
+    if user['id'] != auth.current_user().id:
+        return jsonify({'error': 'Unauthorized access'}), 401
     if wallet is None:
         return jsonify({'message': 'Wallet not found'}), 404
     res = {'id': wallet.id, 'balance': wallet.balance, 'currency': wallet.currency,
@@ -53,6 +61,7 @@ def get_wallet(wallet_id):
 
 
 @wallet_bp.route('/<int:wallet_id>', methods=['PUT'])
+@auth.login_required
 def update_wallet(wallet_id):
     class Wallet(Schema):
         new_currency = fields.Str(required=False)
@@ -63,6 +72,9 @@ def update_wallet(wallet_id):
     except ValidationError as error:
         return jsonify(error.messages), 400
     wallet_to_update = db.session.query(models.Wallet).filter(models.Wallet.id == wallet_id).first()
+    user = db.session.query(models.User).filter(models.User.id == wallet_to_update['user_id']).first()
+    if user['id'] != auth.current_user().id:
+        return jsonify({'error': 'Unauthorized access'}), 401
     if wallet_to_update is None:
         return jsonify({'message': 'Wallet not found'}), 404
 
@@ -82,6 +94,9 @@ def update_wallet(wallet_id):
 def delete_wallet(wallet_id):
     wallet = db.session.query(models.Wallet).filter(models.Wallet.id == wallet_id).first()
     transactions = db.session.query(models.Transaction).filter(models.Transaction.wallet_id_1 == wallet_id).all()
+    user = db.session.query(models.User).filter(models.User.id == wallet['user_id']).first()
+    if user['id'] != auth.current_user().id:
+        return jsonify({'error': 'Unauthorized access'}), 401
     if wallet is None:
         return jsonify({'message': 'Wallet not found'}), 404
     try:

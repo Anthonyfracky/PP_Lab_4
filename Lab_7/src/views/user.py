@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from flask_bcrypt import Bcrypt
 import src.models as models
 import src.db as db
+from src.auth import auth
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 bcrypt = Bcrypt()
@@ -26,20 +27,28 @@ def create_user():
         return jsonify({'message': 'User already exists'}), 400
 
     new_user = models.User(username=user['username'], email=user['email'],
-                           password=bcrypt.generate_password_hash(user['password']).decode('utf-8'),
-                           first_name=user["first_name"], last_name=user["last_name"], phone=user['phone'])
+                           password=bcrypt.generate_password_hash(user['password']).decode('utf-8'))
+    if user.__contains__('first_name'):
+        new_user.first_name = user['first_name']
+    if user.__contains__('last_name'):
+        new_user.last_name = user['last_name']
+    if user.__contains__('phone'):
+        new_user.phone = user['phone']
     try:
         db.session.add(new_user)
     except:
         db.session.rollback()
         return jsonify({'message': 'Error creating user'}), 500
     db.session.commit()
-    return get_user(new_user.id)[0], 200
+    return "Success", 200
 
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
+@auth.login_required()
 def get_user(user_id):
     user = db.session.query(models.User).filter(models.User.id == user_id).first()
+    if user != auth.current_user():
+        return jsonify({'error': 'Unauthorized access'}), 401
     if user is None:
         return jsonify({'message': 'User not found'}), 404
     res = {'id': user.id, 'username': user.username, 'email': user.email, "first_name": user.first_name,
@@ -48,6 +57,7 @@ def get_user(user_id):
 
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
+@auth.login_required
 def update_user(user_id):
     class User(Schema):
         username = fields.Str(required=True)
@@ -63,7 +73,11 @@ def update_user(user_id):
         user = User().load(request.json)
     except ValidationError as error:
         return jsonify(error.messages), 400
+
     user_to_update = db.session.query(models.User).filter(models.User.id == user_id).first()
+
+    if user != auth.current_user():
+        return jsonify({'error': 'Unauthorized access'}), 401
     if user_to_update is None:
         return jsonify({'message': 'User not found'}), 404
     if not bcrypt.check_password_hash(user_to_update.password, user['password']):
@@ -93,14 +107,18 @@ def update_user(user_id):
 
 
 @user_bp.route('/<int:user_id>', methods=['DELETE'])
+@auth.login_required
 def delete_user(user_id):
     user = db.session.query(models.User).filter(models.User.id == user_id).first()
     wallet = db.session.query(models.Wallet).filter(models.Wallet.user_id == user_id).first()
-    transactions = db.session.query(models.Transaction).filter(models.Transaction.wallet_id_1 == wallet.id).all()
+    if user != auth.current_user():
+        return jsonify({'error': 'Unauthorized access'}), 401
     if user is None:
         return jsonify({'message': 'User not found'}), 404
     try:
         if wallet is not None:
+            transactions = db.session.query(models.Transaction).filter(
+                models.Transaction.wallet_id_1 == wallet.id).all()
             for el in transactions:
                 if el is None:
                     break
