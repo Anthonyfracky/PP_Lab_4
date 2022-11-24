@@ -1,1 +1,6 @@
-venv_place
+**/__pycache__/
+.idea/
+venv/
+app.egg-info/
+test.db
+.coveragevenv_place
