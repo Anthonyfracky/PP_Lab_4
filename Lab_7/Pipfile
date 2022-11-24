@@ -20,6 +20,14 @@ psycopg2 = "*"
 marshmallow = "*"
 flask-bcrypt = "*"
 flask-httpauth = "*"
+pytest-flask = "*"
+pytest = "*"
+pytest-cov = "*"
+coverage = "*"
+flask-jwt-extended = "*"
+config = "*"
+flask-testing = "*"
+mock = "*"
 
 [dev-packages]
 
